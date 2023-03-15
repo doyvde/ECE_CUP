@@ -28,8 +28,6 @@ servoRight = 480    #The right position of the servo
 servoPort2 = 2       #The number of the servo that controls the horizontal rotation of the ultrasonic module 
 
 
- 
-
 rangeKeep = 0.3     #Avoidance distance            
 
 scanDir = 1     #Scan direction, 1 is from left to right, -1 is from right to left
