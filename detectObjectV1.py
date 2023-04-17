@@ -37,7 +37,7 @@ scanPos = 1     #Store the current scan position (1 is the left, 2 is the middle
 scanNum = 3     #The number of scan positions (left, middle, and right, these are three positions)
 
 scanList = [0,0,0]  #Save scan results 
-   
+
 GPIO.setmode(GPIO.BCM)  
 
 GPIO.setup(Tr, GPIO.OUT,initial=GPIO.LOW)  

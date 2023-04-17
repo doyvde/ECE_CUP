@@ -1,214 +1,105 @@
-'''
-##########################################################################################################################
-######################################################## LIBRAIRIE #######################################################
-##########################################################################################################################
-'''
-
-import numpy as np
-
 import cv2
-
 import time  
-
 import RPi.GPIO as GPIO  
-
 import json  
-
 import RGB
+import Adafruit_PCA9685  
+import move as mv
 
-import Adafruit_PCA9685 
+pwm = Adafruit_PCA9685.PCA9685()
+pwm.set_pwm_freq(50)
 
-'''
-##########################################################################################################################
-#################################################### DECLARATION VARIABLE ################################################
-##########################################################################################################################
-''' 
+servoportdir = 2
 
-# Capturing video through webcam
-webcam = cv2.VideoCapture(0)
+vitesse=85
+angle=300
+temps=0.20
 
-pwm = Adafruit_PCA9685.PCA9685()  
+cap = cv2.VideoCapture(0)
 
-pwm.set_pwm_freq(50)  
+cap.set(3, 640)
+cap.set(4, 480)
 
-Tr = 11         #Pin No. of Ultrasonic Module Input  
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output1.avi', fourcc, 20.0, (640, 480))
 
-Ec = 8          # Pin number of the output end of the ultrasonic module 
+def setup():
+    GPIO.setwarnings(False)
+    mv.setup()
 
-servoPort = 1       #The number of the servo that controls the horizontal rotation of the ultrasonic module 
-
-servoMiddle = 330   #The middle position of the servo 
-
-servoLeft = 180     #Left position of the servo
-
-servoRight = 480    #The right position of the servo
-
-GPIO.setmode(GPIO.BCM)  
-
-GPIO.setup(Tr, GPIO.OUT,initial=GPIO.LOW)  
-
-GPIO.setup(Ec, GPIO.IN)  
-
-Motor_EN = 17
-
-Motor_Pin1 = 27
-Motor_Pin2 = 18
-
-pwm_B = 0
-
-RGB.setup()
-RGB.cyan()
-
-'''
-##########################################################################################################################
-###################################################### SOUS-PROGRAMME ####################################################
-##########################################################################################################################
-'''
-
-def avancer(vitesse,temps):#Motor en avant
-        
-        GPIO.output(Motor_Pin1, GPIO.LOW)
-        GPIO.output(Motor_Pin2, GPIO.HIGH)
-        pwm_B.start(100)
-        pwm_B.ChangeDutyCycle(vitesse)
-        time.sleep(temps)#pause
-        motorStop()
-
-def reculer(vitesse,temps): #Motor en arriere
-        
-        GPIO.output(Motor_Pin2, GPIO.LOW)
-        GPIO.output(Motor_Pin1, GPIO.HIGH)
-        pwm_B.start(100)
-        pwm_B.ChangeDutyCycle(vitesse)
-        time.sleep(temps)#pause
-        motorStop()
-
-def motorStop(): #Motor stops
-        
-        GPIO.output(Motor_Pin1, GPIO.LOW)
-        GPIO.output(Motor_Pin2, GPIO.LOW)
-        GPIO.output(Motor_EN, GPIO.LOW)
-
-def setup():#Motor initialization
-        global pwm_B
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(Motor_EN, GPIO.OUT)
-        GPIO.setup(Motor_Pin1, GPIO.OUT)
-        GPIO.setup(Motor_Pin2, GPIO.OUT)
-
-        motorStop()
-        try:
-                pwm_B = GPIO.PWM(Motor_EN, 1000)
-        except:
-                pass
-
-'''    
-##########################################################################################################################
-##################################################### DEBUT DU PROGRAMME #################################################
-##########################################################################################################################
-'''  
-
-while 1:  #boucle detection premier obstacle 
+    GPIO.setmode(GPIO.BCM)  
     
-    # Reading the video from the
-    # webcam in image frames
-    _, imageFrame = webcam.read()
-  
-    # Convert the imageFrame in 
-    # BGR(RGB color space) to 
-    # HSV(hue-saturation-value)
-    # color space
-    hsvFrame = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2HSV)
-  
-    # Set range for red color and 
-    # define mask
-    red_lower = np.array([136, 87, 111], np.uint8)
-    red_upper = np.array([180, 255, 255], np.uint8)
-    red_mask = cv2.inRange(hsvFrame, red_lower, red_upper)
-  
-    # Set range for green color and 
-    # define mask
-    green_lower = np.array([25, 52, 72], np.uint8)
-    green_upper = np.array([102, 255, 255], np.uint8)
-    green_mask = cv2.inRange(hsvFrame, green_lower, green_upper)
-  
-    # Set range for blue color and
-    # define mask
-    blue_lower = np.array([94, 80, 2], np.uint8)
-    blue_upper = np.array([120, 255, 255], np.uint8)
-    blue_mask = cv2.inRange(hsvFrame, blue_lower, blue_upper)
 
-    # Morphological Transform, Dilation
-    # for each color and bitwise_and operator
-    # between imageFrame and mask determines
-    # to detect only that particular color
-    kernal = np.ones((5, 5), "uint8")
+def detectColor():
+    ret, frame = cap.read()
 
-    # For red color
-    red_mask = cv2.dilate(red_mask, kernal)
-    res_red = cv2.bitwise_and(imageFrame, imageFrame,mask = red_mask)
-
-    # For green color
-    green_mask = cv2.dilate(green_mask, kernal)
-    res_green = cv2.bitwise_and(imageFrame, imageFrame,mask = green_mask)
-
-    # For blue color
-    blue_mask = cv2.dilate(blue_mask, kernal)
-    res_blue = cv2.bitwise_and(imageFrame, imageFrame,mask = blue_mask)
-
-    # Creating contour to track red color
-    contours, hierarchy = cv2.findContours(red_mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-
-    for pic, contour in enumerate(contours):
-        area = cv2.contourArea(contour)
-        if(area > 300):
-            x, y, w, h = cv2.boundingRect(contour)
-            imageFrame = cv2.rectangle(imageFrame, (x, y),(x + w, y + h),(0, 0, 255), 2)
-            cv2.putText(imageFrame, "Red Colour", (x, y),cv2.FONT_HERSHEY_SIMPLEX, 1.0,(0, 0, 255))    
-
-    # Creating contour to track green color
-    contours, hierarchy = cv2.findContours(green_mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-
-    for pic, contour in enumerate(contours):
-        area = cv2.contourArea(contour)
-        if(area > 300):
-            x, y, w, h = cv2.boundingRect(contour)
-            imageFrame = cv2.rectangle(imageFrame, (x, y),(x + w, y + h),(0, 255, 0), 2)
-            cv2.putText(imageFrame, "Green Colour", (x, y),cv2.FONT_HERSHEY_SIMPLEX,1.0, (0, 255, 0))
-
-    # Creating contour to track blue color
-    contours, hierarchy = cv2.findContours(blue_mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    for pic, contour in enumerate(contours):
-        area = cv2.contourArea(contour)
-        if(area > 300):
-            x, y, w, h = cv2.boundingRect(contour)
-            imageFrame = cv2.rectangle(imageFrame, (x, y),(x + w, y + h),(255, 0, 0), 2)
-            cv2.putText(imageFrame, "Blue Colour", (x, y),cv2.FONT_HERSHEY_SIMPLEX,1.0, (255, 0, 0))
+    frame = cv2.GaussianBlur(frame, (5, 5), 0)
+    
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
 
-    if res_red == 1:  
-            motorStop()
-            print('STOP') 
-            
-    elif res_green == 1:  
-            #All three directions are farther than rangeKeep
-            setup()
-            avancer(65, 0.3)
-            print('Go forward')
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            time.sleep(0.3) #pause
 
-            # Program Termination
-            cv2.imshow("Multiple Color Detection in Real-TIme", imageFrame)
-            if cv2.waitKey(10) & 0xFF == ord('q'):
-                cap.release()
-                cv2.destroyAllWindows()
-                break
-    else:  
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 5)
+    
+    lower_red = (0, 50, 50)
+    upper_red = (10, 255, 255)
+    mask1 = cv2.inRange(hsv_frame, lower_red, upper_red)
 
-            #All three directions are farther than rangeKeep
-            setup()
-            motorStop()
-            print('STOP2') 
+    lower_red = (170, 50, 50)
+    upper_red = (180, 255, 255)
+    mask2 = cv2.inRange(hsv_frame, lower_red, upper_red)
 
+    
+    lower_green = (25, 52, 72)
+    upper_green = (102, 255, 255)
+    mask_green = cv2.inRange(hsv_frame, lower_green, upper_green)
+
+    
+    mask = cv2.bitwise_or(mask1, mask2)
+    red_masked_frame = cv2.bitwise_and(mask, mask, mask=thresh)
+    green_masked_frame = cv2.bitwise_and(mask_green, mask_green, mask=thresh)
+
+    
+    contours_red = cv2.findContours(red_masked_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[1]
+    contours_green = cv2.findContours(green_masked_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[1]
+
+    
+    for contour_red in contours_red:
+        xr, yr, wr, hr = cv2.boundingRect(contour_red)
+        cv2.rectangle(frame, (xr, yr), (xr+wr, yr+hr), (0, 0, 255), 2)
+
+    for contour_green in contours_green:
+        xg, yg, wg, hg = cv2.boundingRect(contour_green)
+        cv2.rectangle(frame, (xg, yg), (xg+wg, yg+hg), (0, 255, 0), 2)
+    
+    
+
+    if cv2.countNonZero(mask) > 0:
+        print("R:1")
+        print('Stop')
+        mv.motorStop()
+        time.sleep(1)
+        out.write(frame) 
+
+    else:
+        print("R:0")
+        print('forward')
+        pwm.set_pwm(servoportdir,0,angle)
+        mv.move(vitesse, 'forward', None)
+        time.sleep(temps)
+        out.write(frame)
+
+
+
+setup()
+while True:
+    detectColor()
+    if cv2.waitKey == ord('q'):
+        break
+
+
+cap.release()
+out.release()
+cv2.destroyAllWindows()
