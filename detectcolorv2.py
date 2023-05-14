@@ -21,14 +21,15 @@ cap.set(3, 640)
 cap.set(4, 480)
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('output1.avi', fourcc, 20.0, (640, 480))
+out = cv2.VideoWriter('color_all.avi', fourcc, 20.0, (640, 480))
+
+
 
 def setup():
     GPIO.setwarnings(False)
     mv.setup()
 
     GPIO.setmode(GPIO.BCM)  
-    
 
 def detectColor():
     ret, frame = cap.read()
@@ -90,7 +91,6 @@ def detectColor():
         mv.move(vitesse, 'forward', None)
         time.sleep(temps)
         out.write(frame)
-
 
 
 setup()
