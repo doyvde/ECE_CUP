@@ -21,26 +21,53 @@ servoPort = 1
 servoportdir = 2      
 
 servoMiddle = 330   
-servoLeft = 180     
-servoRight = 480 
+servoLeft = 200     
+servoRight = 460 
 
-rangeKeep = 0.3               
-scanDir = 1     
-scanPos = 1     
-scanNum = 3     
-scanList = [0,0,0]
+GPIO.setmode(GPIO.BCM)  
+
+GPIO.setup(Tr, GPIO.OUT,initial=GPIO.LOW)  
+
+GPIO.setup(Ec, GPIO.IN) 
+
+Motor_B_EN    = 17
+
+Motor_B_Pin1  = 27
+Motor_B_Pin2  = 18
+
+Dir_forward   = 0
+Dir_backward  = 1
+
+left_forward  = 0
+left_backward = 1
+
+right_forward = 0
+right_backward= 1
 
 
-vitesseM=85
-vitesseL=100
-vitesseR=100
-vitesseRLM=85
-vitesseRM=85
-vitesseLM=85
-vitesse6=70
+pwm_B = 0
+
+pwm2_direction = 1
+pwm2_init = 300
+pwm2_range = 150
+pwm2_max  = 450
+pwm2_min  = 150
+pwm2_pos  = pwm2_init
+
+RGB.setup()
+RGB.cyan()
 
 
-timeM=0.20
+vitesseM=65
+vitesseL=80
+vitesseR=80
+vitesseRLM=65
+vitesseRM=65
+vitesseLM=65
+vitesse6=50
+
+
+timeM=0.10
 timeL=0.15
 timeR=0.15
 timeRLM=0
@@ -57,7 +84,7 @@ angleRM=240
 angleLM=360
 angle6=315
 
-etape=1
+etape=2
 
 
 
@@ -70,9 +97,13 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
+
+
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('output1.avi', fourcc, 20.0, (640, 480))
-out1 = cv2.VideoWriter('fleche_all.avi', fourcc, 20.0, (640, 480))
+out = cv2.VideoWriter('colorall.avi', fourcc, 20.0, (640, 480))
+
+
+
 
 def setup():
     GPIO.setwarnings(False)
@@ -171,8 +202,8 @@ def detectColor(etape):
     mask2 = cv2.inRange(hsv_frame, lower_red, upper_red)
 
     
-    lower_green = (25, 52, 72)
-    upper_green = (102, 255, 255)
+    lower_green = (50, 100, 100)
+    upper_green = (70, 255, 255)
     mask_green = cv2.inRange(hsv_frame, lower_green, upper_green)
 
     
@@ -199,17 +230,20 @@ def detectColor(etape):
         print("R:1")
         print('Stop')
         mv.motorStop()
-        time.sleep(1)
-        out.write(frame) 
+        out.write(frame)
+        etape=2
+        
 
     else:
         print("R:0")
         print('forward')
         pwm.set_pwm(servoportdir,0,angle)
         mv.move(vitesse, 'forward', None)
-        time.sleep(temps)
+        time.sleep(0.5)
+        mv.motorStop()
         out.write(frame)
         etape=3
+        
 
     return etape
 
@@ -269,6 +303,7 @@ def detectForme(etape):
         out1.write(img_resized)
         etape=4
         
+        
 
     else:
         print("flèche vers la gauche")
@@ -278,78 +313,135 @@ def detectForme(etape):
         time.sleep(temps)
         out1.write(img_resized)
         etape=4
+        
 
     return etape
 
 def detectObject():
-    print('Automatic obstacle avoidance mode')  
-    if scanPos == 1:  
-        pwm.set_pwm(servoPort, 0, servoLeft)  
-        time.sleep(0.3)  
-        scanList[0] = checkdist()  
 
-    elif scanPos == 2:  
-        pwm.set_pwm(servoPort, 0, servoMiddle)  
-        time.sleep(0.3)  
-        scanList[1] = checkdist()  
+     rangeKeep = 0.3               
+     scanDir = 1     
+     scanPos = 1     
+     scanNum = 3     
+     scanList = [0,0,0]
+     print('Automatic obstacle avoidance mode')  
 
-    elif scanPos == 3:  
-        pwm.set_pwm(servoPort, 0, servoRight)  
-        time.sleep(0.3)  
-        scanList[2] = checkdist()  
+       
 
-    scanPos = scanPos + scanDir  
+     pwm.set_pwm(servoPort, 0, servoLeft)  
 
-    if scanPos > scanNum or scanPos < 1:  
+     time.sleep(0.3)  
 
-        if scanDir == 1:scanDir = -1  
+     scanList[0] = checkdist()  
 
-        elif scanDir == -1:scanDir = 1  
+       
 
-        scanPos = scanPos + scanDir*2  
+     pwm.set_pwm(servoPort, 0, servoMiddle)  
 
-    print(scanList)  
+     time.sleep(0.3)  
 
-    if min(scanList) < rangeKeep:  
+     scanList[1] = checkdist()  
 
-        if scanList.index(min(scanList)) == 0:  
-            print('right')
-            pwm.set_pwm(servoportdir,0,angleR)
-            mv.move(vitesseR, 'forward', None)
-            time.sleep(timeR)
+       
 
-        elif scanList.index(min(scanList)) == 1:    
+     pwm.set_pwm(servoPort, 0, servoRight)  
 
-            if scanList[0] < scanList[2]:  
-                print('right')
-                pwm.set_pwm(servoportdir,0,angleR)
-                mv.move(vitesseR, 'forward', None)
-                time.sleep(timeR)
+     time.sleep(0.3)  
 
-            else:  
-                print('left')
-                pwm.set_pwm(servoportdir,0,angleL)
-                mv.move(vitesseL, 'forward', None)
-                time.sleep(timeL)  
+     scanList[2] = checkdist()  
 
-        elif scanList.index(min(scanList)) == 2:    
-            print('left')
-            pwm.set_pwm(servoportdir,0,angleL)
-            mv.move(vitesseL, 'forward', None)
-            time.sleep(timeL)
 
-        elif max(scanList) < rangeKeep:  
-            print('reverse') 
-            pwm.set_pwm(servoportdir,0,315)
-            mv.move(vitesse6, 'backward', None)
-            time.sleep(time6)
-            
+     print(scanList)  
 
-    else:  
-        print('forward')
-        pwm.set_pwm(servoportdir,0,angleM)
-        mv.move(vitesseM, 'forward', None)
-        time.sleep(timeM) 
+    
+
+     if min(scanList) < rangeKeep:  
+
+         if scanList.index(min(scanList)) == 0:  #The shortest distance detected on the left
+
+            ''' 
+
+            Turn right 
+
+             '''  
+            speed_set = 80
+            setup()
+            mv.move(speed_set, 'forward', 'right', 0.8)
+            print('Turn right') 
+            time.sleep(0.3)
+            mv.motorStop()
+              
+
+         elif scanList.index(min(scanList)) == 1:    #The shortest distance detected in the middle
+
+             if scanList[0] < scanList[2]:  
+
+                ''' 
+
+                 If the detected distance on the left is shorter than the right, turn to the right
+
+                 '''  
+                speed_set = 80
+                setup()
+                mv.move(speed_set, 'forward', 'right', 0.8)
+                print('Turn right') 
+                time.sleep(0.3)
+                mv.motorStop()
+
+             else:  
+
+                 ''''' 
+
+                 Otherwise, turn left 
+
+                 '''  
+                 speed_set = 80
+                 setup()
+                 mv.move(speed_set, 'forward', 'left', 0.8)
+                 time.sleep(0.3)
+                 mv.motorStop()
+                 print('Turn left')  
+
+         elif scanList.index(min(scanList)) == 2:    #La distance la plus courte détectée à droite
+             ''' 
+
+             Turn Left 
+
+             '''  
+             speed_set = 80
+             setup()
+             mv.move(speed_set, 'forward', 'left', 0.8)
+             time.sleep(0.3)
+             mv.motorStop()
+             print('Turn Left')  
+
+         elif max(scanList) < rangeKeep:  
+
+             ''' 
+
+             If the distances in the left, center, and right directions are all closer than rangeKeep, reverse 
+
+             '''  
+             speed_set = 80
+             setup()
+             mv.move(speed_set, 'backward', 'no', 0.8)
+             time.sleep(0.3)
+             mv.motorStop()
+             print('reverse')  
+
+     else:  
+
+         ''' 
+
+         All three directions are farther than rangeKeep
+
+         '''  
+         speed_set = 80
+         setup()
+         mv.move(speed_set, 'forward', 'no', 0.8)
+         time.sleep(0.3)
+         mv.motorStop()
+         print('Go forward')
 
 
 
@@ -360,18 +452,30 @@ while etape==1:
 
 while etape==2:
 
-    pwm.set_pwm(servoPort, 0, 180)
+    pwm.set_pwm(servoPort, 0, 250)
     etape=detectColor(etape)
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
+    
+pwm.set_pwm(servoPort, 0, 330)
+
+cap.release()
+
+time.sleep(1)
+
+cap = cv2.VideoCapture(0)
+
+cap.set(3, 640)
+cap.set(4, 480)
+
+out1 = cv2.VideoWriter('fleche_all.avi', fourcc, 20.0, (640, 480))
 
 while etape==3:
 
+    
     etape=detectForme(etape)
+    
+
+while etape==4: 
     cap.release()
     out1.release()
     cv2.destroyAllWindows()
-
-while etape==4:
     detectObject()
